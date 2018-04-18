@@ -8,9 +8,9 @@ object Lab6 extends jsy.util.JsyApplication with Lab6Like {
 
   /*
    * CSCI 3155: Lab 6
-   * <Your Name>
+   * Brandon Zink
    *
-   * Partner: <Your Partner's Name>
+   * Partner: Cameron Connor
    * Collaborators: <Any Collaborators>
    */
 
@@ -36,12 +36,26 @@ object Lab6 extends jsy.util.JsyApplication with Lab6Like {
   /*** Exercises with Continuations ***/
 
   def foldLeftAndThen[A,B](t: Tree)(z: A)(f: (A,Int) => A)(sc: A => B): B = {
-    def loop(acc: A, t: Tree)(sc: A => B): B = ???
+    def loop(acc: A, t: Tree)(sc: A => B): B = t match {
+      case Empty        => sc(acc)
+      case Node(l,d,r)  => loop(acc, l){
+        accp =>
+          val accpp = f(accp,d)
+          loop(accpp,r)(sc)
+      }
+    }
     loop(z, t)(sc)
   }
 
   def dfs[A](t: Tree)(f: Int => Boolean)(sc: List[Int] => A)(fc: () => A): A = {
-    def loop(path: List[Int], t: Tree)(fc: () => A): A = ???
+    def loop(path: List[Int], t: Tree)(fc: () => A): A = t match {
+      case Empty          => fc()
+      case Node(l, d, r)  => loop(d::path, l) {
+        () =>
+          if (f(d)) sc(d::path)
+          else loop(d::path, r)(fc)
+      }
+    }
     loop(Nil, t)(fc)
   }
 
@@ -128,26 +142,30 @@ object Lab6 extends jsy.util.JsyApplication with Lab6Like {
     */
   def test(re: RegExpr, chars: List[Char])(sc: List[Char] => Boolean): Boolean = (re, chars) match {
     /* Basic Operators */
-    case (RNoString, _) => ???
-    case (REmptyString, _) => ???
-    case (RSingle(_), Nil) => ???
-    case (RSingle(c1), c2 :: t) => ???
-    case (RConcat(re1, re2), _) => ???
-    case (RUnion(re1, re2), _) => ???
-    case (RStar(re1), _) => ???
+    case (RNoString, _) => false
+    case (REmptyString, _) => sc(chars)
+    case (RSingle(_), Nil) => false
+    case (RSingle(c1), c2 :: t) => if(c1 == c2) sc(t) else false
+    case (RConcat(re1, re2), _) => test(re1, chars) { cp => test(re2, cp)(sc) }
+    case (RUnion(re1, re2), _) => test(re1, chars)(sc) || test(re2, chars)(sc)
+    case (RStar(re1), _) => sc(chars) || test(re1, chars) {
+      cp =>
+        if (cp.size >= chars.size) false
+        else test(RStar(re1), cp)(sc)
+    }
 
     /* Extended Operators */
     case (RAnyChar, Nil) => false
-    case (RAnyChar, _ :: t) => ???
-    case (RPlus(re1), _) => ???
-    case (ROption(re1), _) => ???
+    case (RAnyChar, _ :: t) => sc(t)
+    case (RPlus(re1), _) => test(re1, chars)(charsp => if(charsp.size >= chars.size) false else test(RPlus(re1),charsp)(sc))
+    case (ROption(re1), _) => sc(chars) || test(re1, chars)(sc)
 
     /***** Extra Credit Cases *****/
     case (RIntersect(re1, re2), _) => ???
     case (RNeg(re1), _) => ???
   }
 
-  def retest(re: RegExpr, s: String): Boolean = test(re, s.toList) { chars => ??? }
+  def retest(re: RegExpr, s: String): Boolean = test(re, s.toList) { chars => chars.isEmpty }
 
 
   /*******************************/
